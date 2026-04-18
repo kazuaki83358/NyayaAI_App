@@ -30,8 +30,9 @@
 
 ## ⚙️ Backend Integration
 
-The app connects to a Python/Flask-based backend running at:
-- **Default Endpoint**: `http://192.168.1.33:5000/chat`
+The app connects to a Python/Flask-based backend hosted on Hugging Face Spaces at:
+- **Base URL**: `https://kazuaki83358-nyaya-ai.hf.space/`
+- **Chat Endpoint**: `https://kazuaki83358-nyaya-ai.hf.space/chat`
 - **Request Format**: 
   ```json
   {
