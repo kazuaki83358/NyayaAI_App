@@ -1,0 +1,42 @@
+# Android Studio / IntelliJ
+*.iml
+.gradle
+/local.properties
+/.idea/caches
+/.idea/libraries
+/.idea/modules.xml
+/.idea/workspace.xml
+/.idea/navEditor.xml
+/.idea/assetWizardSettings.xml
+/.idea/modules/
+/.idea/jarRepositories.xml
+/.idea/compiler.xml
+/.idea/deploymentTargetSelector.xml
+/.idea/gradle.xml
+/.idea/misc.xml
+/.idea/runConfigurations.xml
+/.idea/migrations.xml
+/.idea/copilot.data.migration.ask2agent.xml
+
+# Kotlin
+.kotlin/
+*.kotlin_module
+
+# Build folders
+build/
+app/build/
+
+# User-specific files
+.DS_Store
+/captures
+.externalNativeBuild
+.cxx
+local.properties
+
+# Secrets
+.env
+.env.*
+
+# OS generated files
+Thumbs.db
+desktop.ini
