@@ -15,9 +15,8 @@
 ## 📱 Screenshots
 
 <div align="center">
-  <img src="screenshots/chat_screen.png" width="300" alt="Chat Screen"/>
-  <img src="screenshots/profile_screen.png" width="300" alt="Profile Screen"/>
-  <p><em>(Placeholder for your screenshots: Save your images as 'chat_screen.png' and 'profile_screen.png' in the screenshots/ folder)</em></p>
+  <img src="screenshots/img_1.png" width="300" alt="Chat Screen"/>
+  <img src="screenshots/img.png" width="300" alt="Home Screen"/>
 </div>
 
 ## 🛠️ Technical Stack
