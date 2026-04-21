@@ -172,10 +172,13 @@ fun QuickActionItem(label: String, icon: ImageVector, color: Color, darkText: Co
 
 @Composable
 fun DashboardRequestCard(request: RequestData, darkText: Color, secondaryText: Color) {
+    // In dark mode, use surface variant to make it pop against background
+    val cardColor = if (isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
+    
     Surface(
         modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(16.dp)),
         shape = RoundedCornerShape(16.dp),
-        color = MaterialTheme.colorScheme.surface
+        color = cardColor
     ) {
         Row(
             modifier = Modifier.padding(18.dp),

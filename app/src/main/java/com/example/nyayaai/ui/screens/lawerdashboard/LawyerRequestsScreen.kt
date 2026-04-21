@@ -22,8 +22,8 @@ import com.example.nyayaai.ui.components.GradientHeader
 
 @Composable
 fun LawyerRequestsScreen(navController: NavController) {
-    val darkText = Color(0xFF0F172A)
-    val secondaryText = Color(0xFF475569)
+    val darkText = MaterialTheme.colorScheme.onBackground
+    val secondaryText = MaterialTheme.colorScheme.onSurfaceVariant
 
     val requests = listOf(
         RequestData("Sarah Khan", "Family Law", "Urgent", "15 mins ago"),
@@ -42,7 +42,7 @@ fun LawyerRequestsScreen(navController: NavController) {
             modifier = Modifier
                 .fillMaxSize()
                 .padding(padding)
-                .background(Color(0xFFFDF8F6))
+                .background(MaterialTheme.colorScheme.background)
         ) {
             GradientHeader(
                 title = "All Requests",
