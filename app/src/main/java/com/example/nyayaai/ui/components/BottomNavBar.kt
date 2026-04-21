@@ -16,26 +16,44 @@ import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.nyayaai.navigation.Screen
 import com.example.nyayaai.ui.theme.BrandIndigo
 
+import androidx.compose.material.icons.filled.*
+import androidx.compose.runtime.collectAsState
+import androidx.compose.ui.platform.LocalContext
+import com.example.nyayaai.data.PreferenceManager
+
 @Composable
 fun BottomNavBar(navController: NavController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
     val currentRoute = navBackStackEntry?.destination?.route
+    val context = LocalContext.current
+    val preferenceManager = PreferenceManager(context)
+    val userRole = preferenceManager.userRole.collectAsState(initial = "common_man")
 
     NavigationBar(
         containerColor = MaterialTheme.colorScheme.surface,
         tonalElevation = 8.dp
     ) {
-        val items = listOf(
-            Triple(Screen.Home, "Home", Icons.Default.Home),
-            Triple(Screen.Chat, "NyayaAI", Icons.Default.ChatBubbleOutline),
-            Triple(Screen.Documents, "Library", Icons.Default.Description),
-            Triple(Screen.Profile, "Profile", Icons.Default.PersonOutline)
-        )
+        val items = if (userRole.value == "lawyer") {
+            listOf(
+                Triple(Screen.LawyerDashboard, "Dashboard", Icons.Default.Dashboard),
+                Triple(Screen.LawyerRequests, "Requests", Icons.Default.Notifications),
+                Triple(Screen.Chat, "AI Chat", Icons.Default.ChatBubbleOutline),
+                Triple(Screen.Profile, "Profile", Icons.Default.PersonOutline)
+            )
+        } else {
+            listOf(
+                Triple(Screen.Home, "Home", Icons.Default.Home),
+                Triple(Screen.Chat, "NyayaAI", Icons.Default.ChatBubbleOutline),
+                Triple(Screen.Documents, "Lawyers", Icons.Default.PersonSearch),
+                Triple(Screen.Profile, "Profile", Icons.Default.PersonOutline)
+            )
+        }
 
         items.forEach { (screen, label, icon) ->
             val isSelected = currentRoute == screen.route
             NavigationBarItem(
                 selected = isSelected,
+// ... rest of the code
                 onClick = {
                     navController.navigate(screen.route) {
                         popUpTo(navController.graph.findStartDestination().id) {

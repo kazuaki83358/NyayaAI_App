@@ -9,11 +9,93 @@ import com.example.nyayaai.ui.screens.documents.DocumentsScreen
 import com.example.nyayaai.ui.screens.home.HomeScreen
 import com.example.nyayaai.ui.screens.profile.ProfileScreen
 
+import androidx.compose.runtime.collectAsState
+import androidx.compose.runtime.rememberCoroutineScope
+import androidx.compose.ui.platform.LocalContext
+import com.example.nyayaai.data.PreferenceManager
+import com.example.nyayaai.ui.screens.login.LoginScreen
+import com.example.nyayaai.ui.screens.signup.SignUpScreen
+import com.example.nyayaai.ui.screens.choose.ChooseRoleScreen
+import com.example.nyayaai.ui.screens.lawerdashboard.LawyerDashboardScreen
+import kotlinx.coroutines.launch
+
+import com.example.nyayaai.ui.screens.documents.FindLawyerScreen
+import com.example.nyayaai.ui.screens.profile.LawyerProfileScreen
+import com.example.nyayaai.ui.screens.lawerdashboard.LawyerRequestsScreen
+
 @Composable
 fun NavGraph() {
     val navController = rememberNavController()
+    val context = LocalContext.current
+    val preferenceManager = PreferenceManager(context)
+    val isLoggedIn = preferenceManager.isLoggedIn.collectAsState(initial = false)
+    val userRole = preferenceManager.userRole.collectAsState(initial = null)
+    val scope = rememberCoroutineScope()
 
-    NavHost(navController = navController, startDestination = Screen.Home.route) {
+    val startDestination = if (isLoggedIn.value) {
+        if (userRole.value == "lawyer") Screen.LawyerDashboard.route else Screen.Home.route
+    } else {
+        Screen.Login.route
+    }
+
+    NavHost(navController = navController, startDestination = startDestination) {
+        // ... (login, signup, chooserole remain same)
+        composable(Screen.Login.route) {
+            LoginScreen(
+                onLoginSuccess = { role ->
+                    scope.launch {
+                        preferenceManager.setLoggedIn(true)
+                        preferenceManager.setUserRole(role)
+                        if (role == "lawyer") {
+                            navController.navigate(Screen.LawyerDashboard.route) {
+                                popUpTo(Screen.Login.route) { inclusive = true }
+                            }
+                        } else {
+                            navController.navigate(Screen.Home.route) {
+                                popUpTo(Screen.Login.route) { inclusive = true }
+                            }
+                        }
+                    }
+                },
+                onSignUpClick = {
+                    navController.navigate(Screen.SignUp.route)
+                }
+            )
+        }
+        composable(Screen.SignUp.route) {
+            SignUpScreen(
+                onSignUpSuccess = {
+                    navController.navigate(Screen.ChooseRole.route)
+                },
+                onSignInClick = {
+                    navController.navigate(Screen.Login.route)
+                }
+            )
+        }
+        composable(Screen.ChooseRole.route) {
+            ChooseRoleScreen(
+                onUserClick = {
+                    scope.launch {
+                        preferenceManager.setUserRole("common_man")
+                        preferenceManager.setLoggedIn(true)
+                        navController.navigate(Screen.Home.route) {
+                            popUpTo(Screen.ChooseRole.route) { inclusive = true }
+                            popUpTo(Screen.SignUp.route) { inclusive = true }
+                        }
+                    }
+                },
+                onLawyerClick = {
+                    scope.launch {
+                        preferenceManager.setUserRole("lawyer")
+                        preferenceManager.setLoggedIn(true)
+                        navController.navigate(Screen.LawyerDashboard.route) {
+                            popUpTo(Screen.ChooseRole.route) { inclusive = true }
+                            popUpTo(Screen.SignUp.route) { inclusive = true }
+                        }
+                    }
+                }
+            )
+        }
         composable(Screen.Home.route) {
             HomeScreen(navController)
         }
@@ -21,10 +103,24 @@ fun NavGraph() {
             ChatScreen(navController)
         }
         composable(Screen.Documents.route) {
-            DocumentsScreen(navController)
+            if (userRole.value == "lawyer") {
+                // Lawyers might still want documents or something else, but for now let's keep it consistent
+                DocumentsScreen(navController)
+            } else {
+                FindLawyerScreen(navController)
+            }
         }
         composable(Screen.Profile.route) {
             ProfileScreen(navController)
+        }
+        composable(Screen.LawyerDashboard.route) {
+            LawyerDashboardScreen(navController)
+        }
+        composable(Screen.LawyerProfile.route) {
+            LawyerProfileScreen(navController)
+        }
+        composable(Screen.LawyerRequests.route) {
+            LawyerRequestsScreen(navController)
         }
     }
 }
