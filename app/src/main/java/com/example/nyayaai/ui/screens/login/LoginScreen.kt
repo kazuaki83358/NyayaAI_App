@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -13,8 +14,12 @@ import androidx.compose.ui.draw.shadow
 import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.res.painterResource
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +34,11 @@ fun LoginScreen(
     var email by remember { mutableStateOf("") }
     var password by remember { mutableStateOf("") }
     var errorMessage by remember { mutableStateOf<String?>(null) }
+    var isLoading by remember { mutableStateOf(false) }
+    var passwordVisible by remember { mutableStateOf(false) }
+
+    val auth = FirebaseAuth.getInstance()
+    val firestore = FirebaseFirestore.getInstance()
 
     Box(
         modifier = Modifier
@@ -119,7 +129,13 @@ fun LoginScreen(
                         value = password,
                         onValueChange = { password = it },
                         placeholder = { Text("Enter your password", color = Color.LightGray) },
-                        trailingIcon = { Icon(Icons.Outlined.Visibility, contentDescription = null, tint = Color.Gray) },
+                        visualTransformation = if (passwordVisible) VisualTransformation.None else PasswordVisualTransformation(),
+                        trailingIcon = {
+                            val image = if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility
+                            IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                                Icon(image, contentDescription = if (passwordVisible) "Hide password" else "Show password", tint = Color.Gray)
+                            }
+                        },
                         modifier = Modifier.fillMaxWidth(),
                         shape = RoundedCornerShape(12.dp),
                         colors = OutlinedTextFieldDefaults.colors(
@@ -152,15 +168,48 @@ fun LoginScreen(
 
                     Button(
                         onClick = {
-                            if (password == "123") onLoginSuccess("common_man")
-                            else if (password == "1234") onLoginSuccess("lawyer")
-                            else errorMessage = "Incorrect password. Use 123 (User) or 1234 (Lawyer)."
+                            if (email.isBlank() || password.isBlank()) {
+                                errorMessage = "Please fill in all fields"
+                                return@Button
+                            }
+                            isLoading = true
+                            errorMessage = null
+
+                            auth.signInWithEmailAndPassword(email, password)
+                                .addOnCompleteListener { task ->
+                                    if (task.isSuccessful) {
+                                        val uid = task.result?.user?.uid
+                                        if (uid != null) {
+                                            firestore.collection("users").document(uid).get()
+                                                .addOnSuccessListener { document ->
+                                                    isLoading = false
+                                                    val role = document.getString("role") ?: "pending"
+                                                    onLoginSuccess(role)
+                                                }
+                                                .addOnFailureListener { e ->
+                                                    isLoading = false
+                                                    errorMessage = "Logged in, but failed to load profile: ${e.localizedMessage}"
+                                                }
+                                        } else {
+                                            isLoading = false
+                                            errorMessage = "User ID was not generated."
+                                        }
+                                    } else {
+                                        isLoading = false
+                                        errorMessage = task.exception?.localizedMessage ?: "Sign in failed."
+                                    }
+                                }
                         },
+                        enabled = !isLoading,
                         modifier = Modifier.fillMaxWidth().height(56.dp).shadow(12.dp, RoundedCornerShape(12.dp)),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = primaryOrange)
                     ) {
-                        Text("Sign In", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        if (isLoading) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                        } else {
+                            Text("Sign In", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))

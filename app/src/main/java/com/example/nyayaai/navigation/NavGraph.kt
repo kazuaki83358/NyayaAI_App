@@ -28,32 +28,40 @@ fun NavGraph() {
     val navController = rememberNavController()
     val context = LocalContext.current
     val preferenceManager = PreferenceManager(context)
-    val isLoggedIn = preferenceManager.isLoggedIn.collectAsState(initial = false)
+    val isLoggedIn = preferenceManager.isLoggedIn.collectAsState(initial = null)
     val userRole = preferenceManager.userRole.collectAsState(initial = null)
     val scope = rememberCoroutineScope()
 
-    val startDestination = if (isLoggedIn.value) {
-        if (userRole.value == "lawyer") Screen.LawyerDashboard.route else Screen.Home.route
+    if (isLoggedIn.value == null) {
+        // Simple loading or blank screen to prevent flicker
+        return
+    }
+
+    val startDestination = if (isLoggedIn.value == true) {
+        when (userRole.value) {
+            "lawyer" -> Screen.LawyerDashboard.route
+            "common_man" -> Screen.Home.route
+            "pending" -> Screen.ChooseRole.route
+            else -> Screen.Home.route // Fallback
+        }
     } else {
         Screen.Login.route
     }
 
     NavHost(navController = navController, startDestination = startDestination) {
-        // ... (login, signup, chooserole remain same)
         composable(Screen.Login.route) {
             LoginScreen(
                 onLoginSuccess = { role ->
                     scope.launch {
                         preferenceManager.setLoggedIn(true)
                         preferenceManager.setUserRole(role)
-                        if (role == "lawyer") {
-                            navController.navigate(Screen.LawyerDashboard.route) {
-                                popUpTo(Screen.Login.route) { inclusive = true }
-                            }
-                        } else {
-                            navController.navigate(Screen.Home.route) {
-                                popUpTo(Screen.Login.route) { inclusive = true }
-                            }
+                        val destination = when (role) {
+                            "lawyer" -> Screen.LawyerDashboard.route
+                            "common_man" -> Screen.Home.route
+                            else -> Screen.ChooseRole.route
+                        }
+                        navController.navigate(destination) {
+                            popUpTo(Screen.Login.route) { inclusive = true }
                         }
                     }
                 },

@@ -5,6 +5,7 @@ import androidx.compose.foundation.layout.*
 import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.outlined.Visibility
+import androidx.compose.material.icons.outlined.VisibilityOff
 import androidx.compose.material3.*
 import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
@@ -16,9 +17,13 @@ import androidx.compose.ui.text.SpanStyle
 import androidx.compose.ui.text.buildAnnotatedString
 import androidx.compose.ui.text.font.FontFamily
 import androidx.compose.ui.text.font.FontWeight
+import androidx.compose.ui.text.input.PasswordVisualTransformation
+import androidx.compose.ui.text.input.VisualTransformation
 import androidx.compose.ui.text.withStyle
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -29,6 +34,17 @@ fun SignUpScreen(
     val brandOrange = Color(0xFFD97706)
     val backgroundCream = Color(0xFFFDF8F6)
     val darkBlueText = Color(0xFF0F172A)
+
+    var fullName by remember { mutableStateOf("") }
+    var email by remember { mutableStateOf("") }
+    var phone by remember { mutableStateOf("") }
+    var password by remember { mutableStateOf("") }
+    var agreedToTerms by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val auth = FirebaseAuth.getInstance()
+    val firestore = FirebaseFirestore.getInstance()
 
     Box(
         modifier = Modifier
@@ -57,7 +73,6 @@ fun SignUpScreen(
                         shape = RoundedCornerShape(12.dp),
                         shadowElevation = 4.dp
                     ) {
-                        // REPLACE with your actual logo
                         Icon(
                             painter = painterResource(id = android.R.drawable.ic_menu_sort_by_size),
                             contentDescription = null,
@@ -106,25 +121,52 @@ fun SignUpScreen(
                         fontSize = 14.sp
                     )
 
-                    Spacer(modifier = Modifier.height(32.dp))
+                    Spacer(modifier = Modifier.height(24.dp))
+
+                    if (errorMessage != null) {
+                        Text(
+                            text = errorMessage!!,
+                            color = Color.Red,
+                            fontSize = 13.sp,
+                            fontWeight = FontWeight.Bold,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                    }
 
                     // Input Fields
-                    SignUpInputField(label = "Full Name", placeholder = "Your full name")
-                    SignUpInputField(label = "Email Address", placeholder = "you@example.com")
-                    SignUpInputField(label = "Phone Number", placeholder = "+91 98765 43210")
+                    SignUpInputField(
+                        label = "Full Name",
+                        placeholder = "Your full name",
+                        value = fullName,
+                        onValueChange = { fullName = it }
+                    )
+                    SignUpInputField(
+                        label = "Email Address",
+                        placeholder = "you@example.com",
+                        value = email,
+                        onValueChange = { email = it }
+                    )
+                    SignUpInputField(
+                        label = "Phone Number",
+                        placeholder = "+91 98765 43210",
+                        value = phone,
+                        onValueChange = { phone = it }
+                    )
                     SignUpInputField(
                         label = "Password",
                         placeholder = "Create a strong password",
+                        value = password,
+                        onValueChange = { password = it },
                         isPassword = true
                     )
 
-                    Spacer(modifier = Modifier.height(16.dp))
+                    Spacer(modifier = Modifier.height(8.dp))
 
                     // 3. Terms and Conditions Checkbox
                     Row(verticalAlignment = Alignment.Top) {
                         Checkbox(
-                            checked = false,
-                            onCheckedChange = {},
+                            checked = agreedToTerms,
+                            onCheckedChange = { agreedToTerms = it },
                             modifier = Modifier.offset(y = (-12).dp)
                         )
                         Text(
@@ -148,15 +190,62 @@ fun SignUpScreen(
 
                     // 4. Create Account Button
                     Button(
-                        onClick = { onSignUpSuccess() },
+                        onClick = {
+                            if (fullName.isBlank() || email.isBlank() || phone.isBlank() || password.isBlank()) {
+                                errorMessage = "Please fill in all fields"
+                                return@Button
+                            }
+                            if (!agreedToTerms) {
+                                errorMessage = "You must agree to the Terms & Conditions"
+                                return@Button
+                            }
+                            isLoading = true
+                            errorMessage = null
+
+                            auth.createUserWithEmailAndPassword(email, password)
+                                .addOnCompleteListener { task ->
+                                    if (task.isSuccessful) {
+                                        val uid = task.result?.user?.uid
+                                        if (uid != null) {
+                                            val userMap = hashMapOf(
+                                                "uid" to uid,
+                                                "fullName" to fullName,
+                                                "email" to email,
+                                                "phone" to phone,
+                                                "role" to "pending"
+                                            )
+                                            firestore.collection("users").document(uid)
+                                                .set(userMap)
+                                                .addOnSuccessListener {
+                                                    isLoading = false
+                                                    onSignUpSuccess()
+                                                }
+                                                .addOnFailureListener { e ->
+                                                    isLoading = false
+                                                    errorMessage = "Account created, but profile failed: ${e.localizedMessage}"
+                                                }
+                                        } else {
+                                            isLoading = false
+                                            errorMessage = "User ID was not generated."
+                                        }
+                                    } else {
+                                        isLoading = false
+                                        errorMessage = task.exception?.localizedMessage ?: "Registration failed."
+                                    }
+                                }
+                        },
+                        enabled = !isLoading,
                         modifier = Modifier
                             .fillMaxWidth()
-                            .height(56.dp)
-                            .shadow(8.dp, RoundedCornerShape(12.dp)),
+                            .height(56.dp),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = brandOrange)
                     ) {
-                        Text("Create Account", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        if (isLoading) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                        } else {
+                            Text("Create Account", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
 
                     Spacer(modifier = Modifier.height(24.dp))
@@ -183,7 +272,15 @@ fun SignUpScreen(
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
-fun SignUpInputField(label: String, placeholder: String, isPassword: Boolean = false) {
+fun SignUpInputField(
+    label: String,
+    placeholder: String,
+    value: String,
+    onValueChange: (String) -> Unit,
+    isPassword: Boolean = false
+) {
+    var passwordVisible by remember { mutableStateOf(false) }
+
     Column(modifier = Modifier.padding(bottom = 20.dp)) {
         Text(
             text = label,
@@ -193,19 +290,28 @@ fun SignUpInputField(label: String, placeholder: String, isPassword: Boolean = f
         )
         Spacer(modifier = Modifier.height(8.dp))
         OutlinedTextField(
-            value = "",
-            onValueChange = {},
+            value = value,
+            onValueChange = onValueChange,
             placeholder = { Text(placeholder, color = Color.LightGray) },
             modifier = Modifier.fillMaxWidth(),
             shape = RoundedCornerShape(12.dp),
+            visualTransformation = if (isPassword && !passwordVisible) PasswordVisualTransformation() else VisualTransformation.None,
             trailingIcon = if (isPassword) {
-                { Icon(Icons.Outlined.Visibility, contentDescription = null, tint = Color.Gray) }
+                {
+                    val image = if (passwordVisible) Icons.Outlined.VisibilityOff else Icons.Outlined.Visibility
+                    IconButton(onClick = { passwordVisible = !passwordVisible }) {
+                        Icon(image, contentDescription = if (passwordVisible) "Hide password" else "Show password")
+                    }
+                }
             } else null,
+            singleLine = true,
             colors = OutlinedTextFieldDefaults.colors(
                 unfocusedBorderColor = Color(0xFFE5E7EB),
                 focusedBorderColor = Color(0xFFD97706),
                 unfocusedContainerColor = Color.White,
-                focusedContainerColor = Color.White
+                focusedContainerColor = Color.White,
+                unfocusedTextColor = Color.Black,
+                focusedTextColor = Color.Black
             )
         )
     }

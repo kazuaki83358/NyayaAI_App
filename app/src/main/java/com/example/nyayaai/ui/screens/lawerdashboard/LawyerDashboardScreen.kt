@@ -22,6 +22,10 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import androidx.compose.runtime.*
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
+import androidx.compose.ui.platform.LocalContext
 import com.example.nyayaai.navigation.Screen
 import com.example.nyayaai.ui.components.BottomNavBar
 
@@ -31,6 +35,22 @@ fun LawyerDashboardScreen(navController: NavController) {
     val brandBlue = Color(0xFF4F46E5)
     val darkText = MaterialTheme.colorScheme.onBackground
     val secondaryText = MaterialTheme.colorScheme.onSurfaceVariant
+
+    val auth = FirebaseAuth.getInstance()
+    val firestore = FirebaseFirestore.getInstance()
+    var userName by remember { mutableStateOf("Lawyer") }
+
+    LaunchedEffect(Unit) {
+        val uid = auth.currentUser?.uid
+        if (uid != null) {
+            firestore.collection("users").document(uid).get()
+                .addOnSuccessListener { document ->
+                    if (document != null && document.exists()) {
+                        userName = document.getString("fullName") ?: "Lawyer"
+                    }
+                }
+        }
+    }
     
     Scaffold(
         bottomBar = { BottomNavBar(navController) }
@@ -61,7 +81,7 @@ fun LawyerDashboardScreen(navController: NavController) {
                     ) {
                         Column {
                             Text("Welcome back,", color = Color.White.copy(alpha = 0.9f), fontSize = 16.sp)
-                            Text("Adv. Ramesh Singh", color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
+                            Text(userName, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                         }
                         Surface(
                             modifier = Modifier.size(48.dp),

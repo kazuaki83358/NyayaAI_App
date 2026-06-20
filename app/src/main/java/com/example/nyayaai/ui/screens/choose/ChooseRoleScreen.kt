@@ -7,7 +7,9 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -29,6 +31,33 @@ fun ChooseRoleScreen(
     val backgroundCream = Color(0xFFFDF8F3)
     val brandOrange = Color(0xFFD97706)
     val brandBlue = Color(0xFF4F46E5)
+
+    val auth = FirebaseAuth.getInstance()
+    val firestore = FirebaseFirestore.getInstance()
+
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
+
+    val handleRoleSelection = { role: String, onSuccess: () -> Unit ->
+        val uid = auth.currentUser?.uid
+        if (uid != null) {
+            isLoading = true
+            errorMessage = null
+            firestore.collection("users").document(uid)
+                .update("role", role)
+                .addOnSuccessListener {
+                    isLoading = false
+                    onSuccess()
+                }
+                .addOnFailureListener { e ->
+                    isLoading = false
+                    errorMessage = "Failed to update role: ${e.localizedMessage}"
+                }
+        } else {
+            // Fallback: if user session is somehow missing, still try to proceed
+            onSuccess()
+        }
+    }
 
     Column(
         modifier = Modifier
@@ -72,6 +101,23 @@ fun ChooseRoleScreen(
             modifier = Modifier.padding(top = 8.dp)
         )
 
+        if (errorMessage != null) {
+            Spacer(modifier = Modifier.height(16.dp))
+            Text(
+                text = errorMessage!!,
+                color = Color.Red,
+                fontSize = 14.sp,
+                fontWeight = FontWeight.Bold,
+                textAlign = TextAlign.Center,
+                modifier = Modifier.padding(horizontal = 16.dp)
+            )
+        }
+
+        if (isLoading) {
+            Spacer(modifier = Modifier.height(16.dp))
+            CircularProgressIndicator(color = brandOrange)
+        }
+
         Spacer(modifier = Modifier.height(40.dp))
 
         // --- USER CARD ---
@@ -82,7 +128,11 @@ fun ChooseRoleScreen(
             buttonText = "Continue as User",
             accentColor = brandOrange,
             icon = Icons.Default.Chat,
-            onClick = onUserClick
+            onClick = {
+                if (!isLoading) {
+                    handleRoleSelection("common_man", onUserClick)
+                }
+            }
         )
 
         Spacer(modifier = Modifier.height(24.dp))
@@ -95,7 +145,11 @@ fun ChooseRoleScreen(
             buttonText = "Continue as Lawyer",
             accentColor = brandBlue,
             icon = Icons.Default.Work,
-            onClick = onLawyerClick
+            onClick = {
+                if (!isLoading) {
+                    handleRoleSelection("lawyer", onLawyerClick)
+                }
+            }
         )
 
         Spacer(modifier = Modifier.height(32.dp))
@@ -108,7 +162,7 @@ fun ChooseRoleScreen(
             border = BorderStroke(1.dp, Color(0xFFE5E7EB))
         ) {
             Text(
-                text = "Test Prototype: Password 123 for User | Password 1234 for Lawyer",
+                text = "Test Prototype: Choose 'Need Legal Help' or 'I am a Lawyer' to finalize registration.",
                 modifier = Modifier.padding(16.dp),
                 textAlign = TextAlign.Center,
                 fontSize = 12.sp,

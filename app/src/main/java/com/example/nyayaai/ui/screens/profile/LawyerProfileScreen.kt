@@ -18,10 +18,13 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.example.nyayaai.data.PreferenceManager
 import com.example.nyayaai.ui.components.BottomNavBar
 import com.example.nyayaai.ui.components.GradientHeader
 import kotlinx.coroutines.launch
+import kotlinx.coroutines.tasks.await
 
 @OptIn(ExperimentalMaterial3Api::class)
 @Composable
@@ -30,6 +33,11 @@ fun LawyerProfileScreen(navController: NavController) {
     val preferenceManager = PreferenceManager(context)
     val scope = rememberCoroutineScope()
     val profileData by preferenceManager.lawyerProfile.collectAsState(initial = emptyMap())
+
+    val auth = FirebaseAuth.getInstance()
+    val firestore = FirebaseFirestore.getInstance()
+    var isLoading by remember { mutableStateOf(false) }
+    var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val primaryOrange = Color(0xFFD97706)
     val darkBlueText = Color(0xFF1E293B)
@@ -102,22 +110,62 @@ fun LawyerProfileScreen(navController: NavController) {
                     ProfileInputField("Bar Council Enrollment ID", barNumber, darkBlueText) { barNumber = it }
                     ProfileInputField("Professional Summary", about, darkBlueText, singleLine = false) { about = it }
 
+                    if (errorMessage != null) {
+                        Text(errorMessage!!, color = Color.Red, fontSize = 13.sp, modifier = Modifier.padding(bottom = 12.dp))
+                    }
+
                     Spacer(modifier = Modifier.height(32.dp))
 
                     Button(
                         onClick = {
+                            val uid = auth.currentUser?.uid
+                            if (uid == null) {
+                                errorMessage = "User not logged in"
+                                return@Button
+                            }
+
+                            isLoading = true
+                            errorMessage = null
+                            
                             scope.launch {
-                                preferenceManager.saveLawyerProfile(
-                                    name, experience, specialization, city, languages, fee, barNumber, about
-                                )
-                                navController.navigateUp()
+                                try {
+                                    val lawyerMap = hashMapOf(
+                                        "fullName" to name,
+                                        "experience" to experience,
+                                        "specialization" to specialization,
+                                        "city" to city,
+                                        "languages" to languages,
+                                        "fee" to fee,
+                                        "barNumber" to barNumber,
+                                        "about" to about,
+                                        "role" to "lawyer",
+                                        "rating" to 4.5 // Default rating
+                                    )
+                                    
+                                    firestore.collection("users").document(uid).update(lawyerMap as Map<String, Any>).await()
+                                    
+                                    preferenceManager.saveLawyerProfile(
+                                        name, experience, specialization, city, languages, fee, barNumber, about
+                                    )
+                                    
+                                    isLoading = false
+                                    navController.navigateUp()
+                                } catch (e: Exception) {
+                                    isLoading = false
+                                    errorMessage = "Update failed: ${e.localizedMessage}"
+                                }
                             }
                         },
+                        enabled = !isLoading,
                         modifier = Modifier.fillMaxWidth().height(56.dp).shadow(12.dp, RoundedCornerShape(12.dp)),
                         shape = RoundedCornerShape(12.dp),
                         colors = ButtonDefaults.buttonColors(containerColor = primaryOrange)
                     ) {
-                        Text("Update Information", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        if (isLoading) {
+                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                        } else {
+                            Text("Update Information", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                        }
                     }
                     
                     Spacer(modifier = Modifier.height(12.dp))
