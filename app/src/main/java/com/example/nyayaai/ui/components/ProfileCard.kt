@@ -14,10 +14,31 @@ import androidx.compose.ui.graphics.Color
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
+import androidx.compose.runtime.*
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import com.example.nyayaai.ui.theme.BrandIndigo
 
 @Composable
 fun ProfileCard() {
+    val auth = FirebaseAuth.getInstance()
+    val firestore = FirebaseFirestore.getInstance()
+    var userName by remember { mutableStateOf("User") }
+    var userEmail by remember { mutableStateOf("Secured Legal Identity") }
+
+    LaunchedEffect(Unit) {
+        val uid = auth.currentUser?.uid
+        if (uid != null) {
+            firestore.collection("users").document(uid).get()
+                .addOnSuccessListener { doc ->
+                    if (doc.exists()) {
+                        userName = doc.getString("fullName") ?: "User"
+                        userEmail = doc.getString("email") ?: "Secured Legal Identity"
+                    }
+                }
+        }
+    }
+
     Card(
         modifier = Modifier
             .fillMaxWidth()
@@ -53,7 +74,7 @@ fun ProfileCard() {
             
             Column {
                 Text(
-                    text = "Guest User",
+                    text = userName,
                     fontSize = 20.sp,
                     fontWeight = FontWeight.ExtraBold,
                     color = MaterialTheme.colorScheme.onSurface,
@@ -61,7 +82,7 @@ fun ProfileCard() {
                 )
                 
                 Text(
-                    text = "Secured Legal Identity",
+                    text = userEmail,
                     color = Color.Gray,
                     fontSize = 14.sp,
                     fontWeight = FontWeight.Medium

@@ -10,7 +10,7 @@ import androidx.compose.foundation.shape.RoundedCornerShape
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.*
 import androidx.compose.material3.*
-import androidx.compose.runtime.Composable
+import androidx.compose.runtime.*
 import androidx.compose.ui.Alignment
 import androidx.compose.ui.Modifier
 import androidx.compose.ui.draw.clip
@@ -22,9 +22,9 @@ import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.compose.ui.unit.sp
 import androidx.navigation.NavController
-import androidx.compose.runtime.*
 import com.google.firebase.auth.FirebaseAuth
 import com.google.firebase.firestore.FirebaseFirestore
+import com.google.firebase.firestore.Query
 import androidx.compose.ui.platform.LocalContext
 import com.example.nyayaai.navigation.Screen
 import com.example.nyayaai.ui.components.BottomNavBar
@@ -39,17 +39,47 @@ fun LawyerDashboardScreen(navController: NavController) {
     val auth = FirebaseAuth.getInstance()
     val firestore = FirebaseFirestore.getInstance()
     var userName by remember { mutableStateOf("Lawyer") }
+    var activeRequests by remember { mutableStateOf<List<RequestData>>(emptyList()) }
 
-    LaunchedEffect(Unit) {
-        val uid = auth.currentUser?.uid
-        if (uid != null) {
-            firestore.collection("users").document(uid).get()
-                .addOnSuccessListener { document ->
-                    if (document != null && document.exists()) {
-                        userName = document.getString("fullName") ?: "Lawyer"
+    val currentUid = auth.currentUser?.uid
+    
+    DisposableEffect(currentUid) {
+        if (currentUid == null) return@DisposableEffect onDispose {}
+
+        val userListener = firestore.collection("users").document(currentUid).addSnapshotListener { document, _ ->
+            if (document != null && document.exists()) {
+                userName = document.getString("fullName") ?: "Lawyer"
+            }
+        }
+
+        val requestListener = firestore.collection("requests")
+            .whereEqualTo("lawyerId", currentUid)
+            .limit(3)
+            .addSnapshotListener { snapshot, e ->
+                if (e != null) {
+                    android.util.Log.e("LAWYER_DASH", "Listen failed", e)
+                    return@addSnapshotListener
+                }
+                if (snapshot != null) {
+                    activeRequests = snapshot.documents.map { doc ->
+                        RequestData(
+                            name = doc.getString("userName") ?: "Client",
+                            type = doc.getString("type") ?: "Legal consultation",
+                            status = doc.getString("status") ?: "pending",
+                            time = "Today"
+                        )
                     }
                 }
+            }
+        
+        onDispose {
+            userListener.remove()
+            requestListener.remove()
         }
+    }
+
+    LaunchedEffect(Unit) {
+        // Any other non-listener setup if needed
     }
     
     Scaffold(
@@ -84,7 +114,7 @@ fun LawyerDashboardScreen(navController: NavController) {
                             Text(userName, color = Color.White, fontSize = 24.sp, fontWeight = FontWeight.Bold)
                         }
                         Surface(
-                            modifier = Modifier.size(48.dp),
+                            modifier = Modifier.size(48.dp).clickable { navController.navigate(Screen.Notifications.route) },
                             shape = CircleShape,
                             color = Color.White.copy(alpha = 0.2f)
                         ) {
@@ -103,7 +133,7 @@ fun LawyerDashboardScreen(navController: NavController) {
                 horizontalArrangement = Arrangement.spacedBy(16.dp)
             ) {
                 DashboardStatCard("Total Earnings", "₹45,200", Icons.Default.Payments, brandOrange, darkText, secondaryText, Modifier.weight(1f))
-                DashboardStatCard("Consultations", "128", Icons.Default.EventAvailable, brandBlue, darkText, secondaryText, Modifier.weight(1f))
+                DashboardStatCard("Consultations", "${activeRequests.size}", Icons.Default.EventAvailable, brandBlue, darkText, secondaryText, Modifier.weight(1f))
             }
 
             // Quick Actions
@@ -146,12 +176,12 @@ fun LawyerDashboardScreen(navController: NavController) {
                 modifier = Modifier.padding(24.dp),
                 verticalArrangement = Arrangement.spacedBy(16.dp)
             ) {
-                listOf(
-                    RequestData("Sarah Khan", "Family Law", "Urgent", "15 mins ago"),
-                    RequestData("Amit Patel", "Property Dispute", "Pending", "2 hours ago"),
-                    RequestData("Vijay Verma", "Criminal Defense", "Pending", "5 hours ago")
-                ).forEach { request ->
-                    DashboardRequestCard(request, darkText, secondaryText)
+                if (activeRequests.isEmpty()) {
+                    Text("No requests found", color = secondaryText, modifier = Modifier.padding(16.dp))
+                } else {
+                    activeRequests.forEach { request ->
+                        DashboardRequestCard(request, darkText, secondaryText)
+                    }
                 }
             }
             Spacer(modifier = Modifier.height(20.dp))
@@ -192,8 +222,7 @@ fun QuickActionItem(label: String, icon: ImageVector, color: Color, darkText: Co
 
 @Composable
 fun DashboardRequestCard(request: RequestData, darkText: Color, secondaryText: Color) {
-    // In dark mode, use surface variant to make it pop against background
-    val cardColor = if (isSystemInDarkTheme()) MaterialTheme.colorScheme.surfaceVariant.copy(alpha = 0.5f) else MaterialTheme.colorScheme.surface
+    val cardColor = MaterialTheme.colorScheme.surface
     
     Surface(
         modifier = Modifier.fillMaxWidth().shadow(4.dp, RoundedCornerShape(16.dp)),
@@ -216,8 +245,8 @@ fun DashboardRequestCard(request: RequestData, darkText: Color, secondaryText: C
                 Text(request.type, fontSize = 13.sp, color = secondaryText, fontWeight = FontWeight.Medium)
             }
             Column(horizontalAlignment = Alignment.End) {
-                val statusColor = if (request.status == "Urgent") Color(0xFFDC2626) else Color(0xFFD97706)
-                Text(request.status, color = statusColor, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
+                val statusColor = if (request.status == "accepted") Color(0xFF10B981) else Color(0xFFD97706)
+                Text(request.status.replaceFirstChar { it.uppercase() }, color = statusColor, fontSize = 12.sp, fontWeight = FontWeight.ExtraBold)
                 Text(request.time, fontSize = 11.sp, color = secondaryText, fontWeight = FontWeight.Medium)
             }
         }

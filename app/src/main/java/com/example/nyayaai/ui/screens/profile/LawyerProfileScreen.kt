@@ -32,11 +32,11 @@ fun LawyerProfileScreen(navController: NavController) {
     val context = LocalContext.current
     val preferenceManager = PreferenceManager(context)
     val scope = rememberCoroutineScope()
-    val profileData by preferenceManager.lawyerProfile.collectAsState(initial = emptyMap())
 
     val auth = FirebaseAuth.getInstance()
     val firestore = FirebaseFirestore.getInstance()
-    var isLoading by remember { mutableStateOf(false) }
+    var isLoading by remember { mutableStateOf(true) }
+    var isUpdating by remember { mutableStateOf(false) }
     var errorMessage by remember { mutableStateOf<String?>(null) }
 
     val primaryOrange = Color(0xFFD97706)
@@ -51,16 +51,28 @@ fun LawyerProfileScreen(navController: NavController) {
     var barNumber by remember { mutableStateOf("") }
     var about by remember { mutableStateOf("") }
 
-    LaunchedEffect(profileData) {
-        if (profileData.isNotEmpty()) {
-            name = profileData["name"] ?: ""
-            experience = profileData["experience"] ?: ""
-            specialization = profileData["specialization"] ?: ""
-            city = profileData["city"] ?: ""
-            languages = profileData["languages"] ?: ""
-            fee = profileData["fee"] ?: ""
-            barNumber = profileData["barNumber"] ?: ""
-            about = profileData["about"] ?: ""
+    LaunchedEffect(Unit) {
+        val uid = auth.currentUser?.uid
+        if (uid != null) {
+            firestore.collection("users").document(uid).get()
+                .addOnSuccessListener { doc ->
+                    if (doc.exists()) {
+                        name = doc.getString("fullName") ?: ""
+                        experience = doc.getString("experience") ?: ""
+                        specialization = doc.getString("specialization") ?: ""
+                        city = doc.getString("city") ?: ""
+                        languages = doc.getString("languages") ?: ""
+                        fee = doc.getString("fee") ?: ""
+                        barNumber = doc.getString("barNumber") ?: ""
+                        about = doc.getString("about") ?: ""
+                    }
+                    isLoading = false
+                }
+                .addOnFailureListener {
+                    isLoading = false
+                }
+        } else {
+            isLoading = false
         }
     }
 
@@ -78,100 +90,106 @@ fun LawyerProfileScreen(navController: NavController) {
         },
         bottomBar = { BottomNavBar(navController) }
     ) { padding ->
-        Column(
-            modifier = Modifier
-                .fillMaxSize()
-                .padding(padding)
-                .background(Color(0xFFFDF8F6))
-                .verticalScroll(rememberScrollState())
-        ) {
-            GradientHeader(
-                title = "Expertise Details",
-                subtitle = "Share your professional background with potential clients"
-            )
-
-            Surface(
-                modifier = Modifier
-                    .padding(24.dp)
-                    .shadow(16.dp, RoundedCornerShape(28.dp)),
-                shape = RoundedCornerShape(28.dp),
-                color = Color.White
-            ) {
-                Column(modifier = Modifier.padding(24.dp)) {
-                    Text("Basic Information", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = darkBlueText)
-                    Spacer(modifier = Modifier.height(20.dp))
-
-                    ProfileInputField("Full Name", name, darkBlueText) { name = it }
-                    ProfileInputField("Years of Experience", experience, darkBlueText) { experience = it }
-                    ProfileInputField("Practice Area (e.g., Criminal, Family)", specialization, darkBlueText) { specialization = it }
-                    ProfileInputField("Current City", city, darkBlueText) { city = it }
-                    ProfileInputField("Languages Known", languages, darkBlueText) { languages = it }
-                    ProfileInputField("Consultation Fee (₹)", fee, darkBlueText) { fee = it }
-                    ProfileInputField("Bar Council Enrollment ID", barNumber, darkBlueText) { barNumber = it }
-                    ProfileInputField("Professional Summary", about, darkBlueText, singleLine = false) { about = it }
-
-                    if (errorMessage != null) {
-                        Text(errorMessage!!, color = Color.Red, fontSize = 13.sp, modifier = Modifier.padding(bottom = 12.dp))
-                    }
-
-                    Spacer(modifier = Modifier.height(32.dp))
-
-                    Button(
-                        onClick = {
-                            val uid = auth.currentUser?.uid
-                            if (uid == null) {
-                                errorMessage = "User not logged in"
-                                return@Button
-                            }
-
-                            isLoading = true
-                            errorMessage = null
-                            
-                            scope.launch {
-                                try {
-                                    val lawyerMap = hashMapOf(
-                                        "fullName" to name,
-                                        "experience" to experience,
-                                        "specialization" to specialization,
-                                        "city" to city,
-                                        "languages" to languages,
-                                        "fee" to fee,
-                                        "barNumber" to barNumber,
-                                        "about" to about,
-                                        "role" to "lawyer",
-                                        "rating" to 4.5 // Default rating
-                                    )
-                                    
-                                    firestore.collection("users").document(uid).update(lawyerMap as Map<String, Any>).await()
-                                    
-                                    preferenceManager.saveLawyerProfile(
-                                        name, experience, specialization, city, languages, fee, barNumber, about
-                                    )
-                                    
-                                    isLoading = false
-                                    navController.navigateUp()
-                                } catch (e: Exception) {
-                                    isLoading = false
-                                    errorMessage = "Update failed: ${e.localizedMessage}"
-                                }
-                            }
-                        },
-                        enabled = !isLoading,
-                        modifier = Modifier.fillMaxWidth().height(56.dp).shadow(12.dp, RoundedCornerShape(12.dp)),
-                        shape = RoundedCornerShape(12.dp),
-                        colors = ButtonDefaults.buttonColors(containerColor = primaryOrange)
-                    ) {
-                        if (isLoading) {
-                            CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
-                        } else {
-                            Text("Update Information", fontSize = 16.sp, fontWeight = FontWeight.Bold)
-                        }
-                    }
-                    
-                    Spacer(modifier = Modifier.height(12.dp))
-                }
+        if (isLoading) {
+            Box(modifier = Modifier.fillMaxSize(), contentAlignment = Alignment.Center) {
+                CircularProgressIndicator(color = primaryOrange)
             }
-            Spacer(modifier = Modifier.height(40.dp))
+        } else {
+            Column(
+                modifier = Modifier
+                    .fillMaxSize()
+                    .padding(padding)
+                    .background(Color(0xFFFDF8F6))
+                    .verticalScroll(rememberScrollState())
+            ) {
+                GradientHeader(
+                    title = "Expertise Details",
+                    subtitle = "Share your professional background with potential clients"
+                )
+
+                Surface(
+                    modifier = Modifier
+                        .padding(24.dp)
+                        .shadow(16.dp, RoundedCornerShape(28.dp)),
+                    shape = RoundedCornerShape(28.dp),
+                    color = Color.White
+                ) {
+                    Column(modifier = Modifier.padding(24.dp)) {
+                        Text("Basic Information", fontWeight = FontWeight.ExtraBold, fontSize = 18.sp, color = darkBlueText)
+                        Spacer(modifier = Modifier.height(20.dp))
+
+                        ProfileInputField("Full Name", name, darkBlueText) { name = it }
+                        ProfileInputField("Years of Experience", experience, darkBlueText) { experience = it }
+                        ProfileInputField("Practice Area (e.g., Criminal, Family)", specialization, darkBlueText) { specialization = it }
+                        ProfileInputField("Current City", city, darkBlueText) { city = it }
+                        ProfileInputField("Languages Known", languages, darkBlueText) { languages = it }
+                        ProfileInputField("Consultation Fee (₹)", fee, darkBlueText) { fee = it }
+                        ProfileInputField("Bar Council Enrollment ID", barNumber, darkBlueText) { barNumber = it }
+                        ProfileInputField("Professional Summary", about, darkBlueText, singleLine = false) { about = it }
+
+                        if (errorMessage != null) {
+                            Text(errorMessage!!, color = Color.Red, fontSize = 13.sp, modifier = Modifier.padding(bottom = 12.dp))
+                        }
+
+                        Spacer(modifier = Modifier.height(32.dp))
+
+                        Button(
+                            onClick = {
+                                val uid = auth.currentUser?.uid
+                                if (uid == null) {
+                                    errorMessage = "User not logged in"
+                                    return@Button
+                                }
+
+                                isUpdating = true
+                                errorMessage = null
+                                
+                                scope.launch {
+                                    try {
+                                        val lawyerMap = hashMapOf(
+                                            "fullName" to name,
+                                            "experience" to experience,
+                                            "specialization" to specialization,
+                                            "city" to city,
+                                            "languages" to languages,
+                                            "fee" to fee,
+                                            "barNumber" to barNumber,
+                                            "about" to about,
+                                            "role" to "lawyer",
+                                            "rating" to 4.5
+                                        )
+                                        
+                                        firestore.collection("users").document(uid).update(lawyerMap as Map<String, Any>).await()
+                                        
+                                        preferenceManager.saveLawyerProfile(
+                                            name, experience, specialization, city, languages, fee, barNumber, about
+                                        )
+                                        
+                                        isUpdating = false
+                                        navController.navigateUp()
+                                    } catch (e: Exception) {
+                                        isUpdating = false
+                                        errorMessage = "Update failed: ${e.localizedMessage}"
+                                    }
+                                }
+                            },
+                            enabled = !isUpdating,
+                            modifier = Modifier.fillMaxWidth().height(56.dp).shadow(12.dp, RoundedCornerShape(12.dp)),
+                            shape = RoundedCornerShape(12.dp),
+                            colors = ButtonDefaults.buttonColors(containerColor = primaryOrange)
+                        ) {
+                            if (isUpdating) {
+                                CircularProgressIndicator(color = Color.White, modifier = Modifier.size(24.dp))
+                            } else {
+                                Text("Update Information", fontSize = 16.sp, fontWeight = FontWeight.Bold)
+                            }
+                        }
+                        
+                        Spacer(modifier = Modifier.height(12.dp))
+                    }
+                }
+                Spacer(modifier = Modifier.height(40.dp))
+            }
         }
     }
 }

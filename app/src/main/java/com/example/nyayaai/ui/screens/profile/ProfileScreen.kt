@@ -26,6 +26,8 @@ import com.example.nyayaai.navigation.Screen
 import com.example.nyayaai.ui.components.BottomNavBar
 import com.example.nyayaai.ui.components.ProfileCard
 import com.example.nyayaai.ui.theme.*
+import com.google.firebase.auth.FirebaseAuth
+import com.google.firebase.firestore.FirebaseFirestore
 import kotlinx.coroutines.launch
 
 @Composable
@@ -36,6 +38,22 @@ fun ProfileScreen(navController: NavController) {
     val userRole = preferenceManager.userRole.collectAsState(initial = "common_man")
     val scope = rememberCoroutineScope()
     
+    val auth = FirebaseAuth.getInstance()
+    val firestore = FirebaseFirestore.getInstance()
+    var userData by remember { mutableStateOf<Map<String, Any>>(emptyMap()) }
+
+    LaunchedEffect(Unit) {
+        val uid = auth.currentUser?.uid
+        if (uid != null) {
+            firestore.collection("users").document(uid).get()
+                .addOnSuccessListener { doc ->
+                    if (doc.exists()) {
+                        userData = doc.data ?: emptyMap()
+                    }
+                }
+        }
+    }
+
     val brandOrange = Color(0xFFD97706)
     val darkText = MaterialTheme.colorScheme.onBackground
     val secondaryText = MaterialTheme.colorScheme.onSurfaceVariant
@@ -95,6 +113,20 @@ fun ProfileScreen(navController: NavController) {
                             }
                         }
                         Spacer(modifier = Modifier.height(24.dp))
+                    } else if (userData.isNotEmpty()) {
+                        Text(
+                            text = "Account Details",
+                            fontSize = 20.sp,
+                            fontWeight = FontWeight.ExtraBold,
+                            color = darkText,
+                            modifier = Modifier.padding(bottom = 16.dp)
+                        )
+                        
+                        DetailRow("Full Name", userData["fullName"]?.toString() ?: "N/A", darkText, secondaryText)
+                        DetailRow("Email", userData["email"]?.toString() ?: "N/A", darkText, secondaryText)
+                        DetailRow("Phone", userData["phone"]?.toString() ?: "N/A", darkText, secondaryText)
+                        
+                        Spacer(modifier = Modifier.height(24.dp))
                     }
 
                     Text(
@@ -129,7 +161,9 @@ fun ProfileScreen(navController: NavController) {
                     }
                     
                     SettingsRow(icon = Icons.Outlined.Notifications, title = "Notifications", darkText = darkText) {
-                        Icon(Icons.Outlined.ChevronRight, null, tint = secondaryText)
+                        IconButton(onClick = { navController.navigate(Screen.Notifications.route) }) {
+                            Icon(Icons.Outlined.ChevronRight, null, tint = secondaryText)
+                        }
                     }
                     
                     SettingsRow(icon = Icons.Outlined.Logout, title = "Logout", titleColor = Color.Red, darkText = darkText) {
@@ -150,6 +184,17 @@ fun ProfileScreen(navController: NavController) {
                 }
             }
         }
+    }
+}
+
+@Composable
+fun DetailRow(label: String, value: String, darkText: Color, secondaryText: Color) {
+    Row(
+        modifier = Modifier.fillMaxWidth().padding(vertical = 8.dp),
+        horizontalArrangement = Arrangement.SpaceBetween
+    ) {
+        Text(label, color = secondaryText, fontSize = 14.sp)
+        Text(value, color = darkText, fontWeight = FontWeight.Bold, fontSize = 14.sp)
     }
 }
 

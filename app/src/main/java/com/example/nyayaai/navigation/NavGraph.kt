@@ -22,6 +22,8 @@ import kotlinx.coroutines.launch
 import com.example.nyayaai.ui.screens.documents.FindLawyerScreen
 import com.example.nyayaai.ui.screens.profile.LawyerProfileScreen
 import com.example.nyayaai.ui.screens.lawerdashboard.LawyerRequestsScreen
+import com.example.nyayaai.ui.screens.notifications.NotificationScreen
+import com.example.nyayaai.ui.screens.chat.ChatDetailScreen
 
 @Composable
 fun NavGraph() {
@@ -129,6 +131,13 @@ fun NavGraph() {
         }
         composable(Screen.LawyerRequests.route) {
             LawyerRequestsScreen(navController)
+        }
+        composable(Screen.Notifications.route) {
+            NotificationScreen(navController)
+        }
+        composable(Screen.ChatDetail.route) { backStackEntry ->
+            val requestId = backStackEntry.arguments?.getString("requestId") ?: ""
+            ChatDetailScreen(navController, requestId)
         }
     }
 }

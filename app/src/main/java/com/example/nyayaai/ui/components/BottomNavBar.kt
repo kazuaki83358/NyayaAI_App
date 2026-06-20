@@ -2,7 +2,6 @@ package com.example.nyayaai.ui.components
 
 import androidx.compose.material.icons.Icons
 import androidx.compose.material.icons.filled.ChatBubbleOutline
-import androidx.compose.material.icons.filled.Description
 import androidx.compose.material.icons.filled.Home
 import androidx.compose.material.icons.filled.PersonOutline
 import androidx.compose.material3.*
@@ -11,6 +10,7 @@ import androidx.compose.runtime.getValue
 import androidx.compose.ui.text.font.FontWeight
 import androidx.compose.ui.unit.dp
 import androidx.navigation.NavController
+import androidx.navigation.NavDestination.Companion.hierarchy
 import androidx.navigation.NavGraph.Companion.findStartDestination
 import androidx.navigation.compose.currentBackStackEntryAsState
 import com.example.nyayaai.navigation.Screen
@@ -24,7 +24,7 @@ import com.example.nyayaai.data.PreferenceManager
 @Composable
 fun BottomNavBar(navController: NavController) {
     val navBackStackEntry by navController.currentBackStackEntryAsState()
-    val currentRoute = navBackStackEntry?.destination?.route
+    val currentDestination = navBackStackEntry?.destination
     val context = LocalContext.current
     val preferenceManager = PreferenceManager(context)
     val userRole = preferenceManager.userRole.collectAsState(initial = "common_man")
@@ -35,7 +35,7 @@ fun BottomNavBar(navController: NavController) {
     ) {
         val items = if (userRole.value == "lawyer") {
             listOf(
-                Triple(Screen.LawyerDashboard, "Dashboard", Icons.Default.Dashboard),
+                Triple(Screen.LawyerDashboard, "Home", Icons.Default.Home),
                 Triple(Screen.LawyerRequests, "Requests", Icons.Default.Notifications),
                 Triple(Screen.Chat, "AI Chat", Icons.Default.ChatBubbleOutline),
                 Triple(Screen.Profile, "Profile", Icons.Default.PersonOutline)
@@ -50,17 +50,27 @@ fun BottomNavBar(navController: NavController) {
         }
 
         items.forEach { (screen, label, icon) ->
-            val isSelected = currentRoute == screen.route
+            val isSelected = currentDestination?.hierarchy?.any { it.route == screen.route } == true
+            
             NavigationBarItem(
                 selected = isSelected,
-// ... rest of the code
                 onClick = {
-                    navController.navigate(screen.route) {
-                        popUpTo(navController.graph.findStartDestination().id) {
-                            saveState = true
+                    if (screen.route == Screen.Home.route || screen.route == Screen.LawyerDashboard.route) {
+                        // FORCE navigate back to root Home/Dashboard
+                        navController.navigate(screen.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                inclusive = true
+                            }
+                            launchSingleTop = true
                         }
-                        launchSingleTop = true
-                        restoreState = true
+                    } else {
+                        navController.navigate(screen.route) {
+                            popUpTo(navController.graph.findStartDestination().id) {
+                                saveState = true
+                            }
+                            launchSingleTop = true
+                            restoreState = true
+                        }
                     }
                 },
                 icon = {

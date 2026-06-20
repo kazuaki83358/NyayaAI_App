@@ -4,12 +4,13 @@
 
 ## 🚀 Key Features
 
-- **Legal AI Assistant**: Get instant answers to your legal queries, from understanding specific acts to general legal guidance.
+- **Legal AI Assistant**: Get instant answers to your legal queries using a specialized legal LLM.
+- **Lawyer Consultation System**: Find legal professionals, send consultation requests, and track status in real-time.
+- **Instant Real-Time Chat**: Direct communication between clients and lawyers with instant messaging and live updates.
+- **Real-Time Notifications**: Get notified instantly when a lawyer accepts your request or when you receive a new message.
 - **Smart Formatting**: Support for bold text and Markdown formatting in AI responses for better readability.
-- **Persistent Conversations**: Your chat history is saved automatically using Jetpack DataStore, so you never lose your progress.
-- **Premium UI/UX**: Modern, interactive design with support for both Light and Dark themes.
-- **Dark Mode Support**: Remembers your theme preference across app restarts.
-- **Legal Categories**: Quick access to specialized legal areas like Family Law, Labour Law, Property, and Criminal Law.
+- **Persistent Conversations**: Your chat history and legal requests are saved securely.
+- **Premium UI/UX**: Modern, interactive design with specialized dashboards for both Lawyers and Clients.
 - **Emergency Contacts**: One-tap access to essential emergency services (Police, Women's Helpline, Ambulance, Child Help).
 
 ## 📱 Screenshots
@@ -21,18 +22,18 @@
 
 ## 🛠️ Technical Stack
 
-- **Framework**: [Jetpack Compose](https://developer.android.com/compose) (Android's modern toolkit for building native UI)
+- **Framework**: [Jetpack Compose](https://developer.android.com/compose)
 - **Language**: [Kotlin](https://kotlinlang.org/)
+- **Backend/Database**: [Firebase](https://firebase.google.com/) (Auth, Firestore, Cloud Messaging)
 - **Networking**: [Retrofit](https://square.github.io/retrofit/) & [OkHttp](https://square.github.io/okhttp/)
-- **Data Persistence**: [Jetpack DataStore](https://developer.android.com/topic/libraries/architecture/datastore) (Preferences DataStore)
-- **JSON Handling**: [Gson](https://github.com/google/gson)
+- **Data Persistence**: [Jetpack DataStore](https://developer.android.com/topic/libraries/architecture/datastore)
 - **Navigation**: [Compose Navigation](https://developer.android.com/jetpack/compose/navigation)
 
 ## ⚙️ Backend Integration
 
 The app connects to a Python/Flask-based backend hosted on Hugging Face Spaces at:
-- **Base URL**: `https://kazuaki83358-nyaya-ai.hf.space/`
-- **Chat Endpoint**: `https://kazuaki83358-nyaya-ai.hf.space/chat`
+- **Base URL**: `https://kazuaki83358-nyaya-backend.hf.space/`
+- **Chat Endpoint**: `https://kazuaki83358-nyaya-backend.hf.space/chat`
 - **Request Format**: 
   ```json
   {
